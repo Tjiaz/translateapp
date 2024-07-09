@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  web:
+    build: ./app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgres://ua4pdfv2s478sf:pc626452873447e3b0d9e2801986a8fdf9b48da7fafc43d3af8dc0dc2d86cef93@caij57unh724n3.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d6jlubtksp83h"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: d6jlubtksp83h
+      POSTGRES_USER: ua4pdfv2s478sf
+      POSTGRES_PASSWORD: pc626452873447e3b0d9e2801986a8fdf9b48da7fafc43d3af8dc0dc2d86cef93
+    ports:
+      - "5432:5432"
