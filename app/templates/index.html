@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Translation app</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body,
+      html {
+        height: 100%;
+        margin: 0;
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+      }
+      .content {
+        flex: 1;
+      }
+      .navbar {
+        background-color: #34568b;
+      }
+      .btn-primary {
+        background-color: #88b04b;
+        border-color: #88b04b;
+      }
+      .form-label {
+        color: #34568b;
+      }
+      .logo {
+        max-width: 30%;
+        height: auto;
+        padding: 20px;
+      }
+      .footer {
+        color: black;
+        text-align: center;
+        padding: 10px 0;
+        width: 100%;
+      }
+      .form-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        height: 100%;
+        padding: 20px;
+      }
+      .form-box {
+        width: 100%;
+        max-width: 600px;
+        margin: 10px 0;
+      }
+      .btn-container {
+        text-align: center;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+      <a href="#" class="navbar-navbar">Translation service app....</a>
+    </nav>
+    <div class="container content">
+      <h1 class="text-center mt-4">Translation Service</h1>
+      <form id="translationForm">
+        <div class="form-group">
+          <label for="textToTranslate">Text to translate</label>
+          <textarea
+            class="form-control"
+            id="textToTranslate"
+            rows="4"
+            placeholder="Enter Words to translate"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="languages">Languages (comma-separated)</label>
+          <input
+            type="text"
+            class="form-control"
+            id="languages"
+            placeholder="e.g english, german, russian"
+          />
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary translate-button"
+          onclick="submitTranslation()"
+        >
+          Translate
+        </button>
+      </form>
+
+      <div class="mt-4" id="results" style="display: none">
+        <h3>Translation Results</h3>
+        <pre id="TranslationResults"></pre>
+      </div>
+
+      <div class="mt-4" id="progress-container" style="display: none">
+        <h4 id="progress-text">Translation in progress....</h4>
+        <div class="progress">
+          <div
+            id="progress-bar"
+            class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+            role="progressbar"
+            style="width: 0%"
+          ></div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <label for="search-id">Check Translation by ID</label>
+        <input
+          type="number"
+          id="search-id"
+          placeholder="Enter Translate ID"
+          class="form-control"
+        />
+        <button
+          id="search-btn"
+          class="btn btn-info mt-2"
+          onclick="checkTranslationStatus()"
+        >
+          Check Status
+        </button>
+        <button
+          id="content-btn"
+          class="btn btn-secondary mt-2"
+          onclick="checkTranslationContent()"
+        >
+          Check Content
+        </button>
+      </div>
+
+      <div class="mt-4" id="status-container" style="display: none">
+        <h4>Translation Status</h4>
+        <pre id="statusResult"></pre>
+      </div>
+
+      <div class="mt-4" id="content-container" style="display: none">
+        <h4>Translation content</h4>
+        <pre id="contentResult"></pre>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+      async function submitTranslation() {
+        const text = document.getElementById("textToTranslate").value;
+        const languages = document
+          .getElementById("languages")
+          .value.split(",")
+          .map((lang) => lang.trim());
+
+        if (!text || languages.length === 0 || languages[0] === "") {
+          alert("Please provide both text and target language.");
+          return;
+        }
+
+        const progressBar = document.getElementById("progress-bar");
+        const progressText = document.getElementById("progress-text");
+
+        progressBar.classList.remove("bg-success");
+        progressBar.classList.add("bg-primary");
+        progressBar.style.width = "0%";
+        progressText.textContent = "Translate in progress...";
+
+        try {
+          const response = await axios.post("http://localhost:8000/translate", {
+            text,
+            languages,
+          });
+
+          const taskId = response.data.task_id;
+          alert(`Task ID: ${taskId}`);
+
+          document.getElementById("progress-container").style.display = "block";
+          document.getElementById("results").style.display = "none";
+          document.getElementById("status-container").style.display = "none";
+          document.getElementById("content-container").style.display = "none";
+
+          let translationResult = null;
+          let progress = 0;
+          while (progress < 100) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const resultResponse = await axios.get(
+              `http://localhost:8000/translate/${taskId}`
+            );
+            translationResult = resultResponse.data;
+
+            if (translationResult.status === "completed") {
+              progress = 100;
+            } else {
+              progressBar.style.width = "50%";
+            }
+          }
+
+          progressBar.classList.remove("bg-primary");
+          progressBar.classList.add("bg-success");
+          progressBar.style.width = "100%";
+          progressText.textContent = "Translation complete!";
+
+          document.getElementById("TranslationResults").textContent =
+            JSON.stringify(translationResult.translations, null, 2);
+          document.getElementById("results").style.display = "block";
+        } catch (e) {
+          console.error("Error submitting translation", e);
+          alert("An error occurred while translating, please try again");
+        }
+      }
+
+      async function checkTranslationStatus() {
+        const id = document.getElementById("search-id").value;
+
+        try {
+          const response = await axios.get(
+            `http://localhost:8000/translate/${id}`
+          );
+          const translationResult = response.data;
+          document.getElementById(
+            "statusResult"
+          ).textContent = `Status: ${translationResult.status}`;
+          document.getElementById("status-container").style.display = "block";
+        } catch (error) {
+          console.log("Error fetching translation status:", error);
+          alert("Error fetching translation status, please try again");
+        }
+      }
+
+      async function checkTranslationContent() {
+        const id = document.getElementById("search-id").value;
+
+        try {
+          const response = await axios.get(
+            `http://localhost:8000/translate/content/${id}`
+          );
+          const contentResult = response.data;
+          document.getElementById("contentResult").textContent = JSON.stringify(
+            contentResult,
+            null,
+            2
+          );
+          document.getElementById("content-container").style.display = "block";
+        } catch (error) {
+          console.log("Error fetching translation content:", error);
+          alert("Error fetching translation content, please try again");
+        }
+      }
+    </script>
+  </body>
+</html>

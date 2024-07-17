@@ -1,3 +1,4 @@
 
 trans/
 .env
+.vercel
